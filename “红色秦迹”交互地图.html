@@ -1,0 +1,847 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>革命纪念馆地图</title>
+  <meta charset="utf-8" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.7.1/dist/leaflet.css" />
+  <script src="https://unpkg.com/leaflet@1.7.1/dist/leaflet.js"></script>
+  <link href="https://cdn.jsdelivr.net/npm/font-awesome@4.7.0/css/font-awesome.min.css" rel="stylesheet">
+  <style>
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+    }
+    #map { 
+      height: 100%; 
+      width: 100%;
+    }
+    .map-controls {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      z-index: 1000;
+      background: white;
+      border-radius: 5px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+      padding: 10px;
+    }
+    .control-btn {
+      display: block;
+      width: 36px;
+      height: 36px;
+      margin-bottom: 5px;
+      border: none;
+      border-radius: 4px;
+      background-color: #f4f4f4;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .control-btn:hover {
+      background-color: #e0e0e0;
+    }
+    .control-btn:last-child {
+      margin-bottom: 0;
+    }
+    /* 地点列表面板 */
+    .sites-panel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      z-index: 1000;
+      background: white;
+      border-radius: 5px;
+      box-shadow: 0 1px 10px rgba(0,0,0,0.3);
+      padding: 15px;
+      width: 250px;
+      max-height: calc(100% - 50px);
+      overflow-y: auto;
+    }
+    .sites-panel h3 {
+      margin: 0 0 15px 0;
+      color: #c41e3a;
+      padding-bottom: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .site-item {
+      display: flex;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .site-item:last-child {
+      border-bottom: none;
+    }
+    .site-item:hover {
+      background-color: #f9f9f9;
+    }
+    .site-icon {
+      width: 40px;
+      height: 40px;
+      background-color: #f0f0f0;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      color: #c41e3a;
+    }
+    .site-info {
+      flex: 1;
+    }
+    .site-name {
+      font-weight: bold;
+      font-size: 14px;
+      margin: 0 0 3px 0;
+    }
+    .site-location {
+      font-size: 12px;
+      color: #666;
+      margin: 0 0 5px 0;
+    }
+    .view-detail {
+      font-size: 12px;
+      color: #1e88e5;
+      margin: 0;
+      cursor: pointer;
+    }
+    .view-detail:hover {
+      text-decoration: underline;
+    }
+    
+    /* 全线路线规划按钮 */
+    .full-route-btn {
+      width: 100%;
+      margin-top: 15px;
+      padding: 10px;
+      background-color: #c41e3a;
+      color: white;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      font-weight: bold;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: background-color 0.2s;
+    }
+    .full-route-btn:hover {
+      background-color: #a51a30;
+    }
+    
+    /* 自定义弹窗样式 */
+    .custom-popup .leaflet-popup-content-wrapper {
+      border-radius: 8px;
+      box-shadow: 0 3px 14px rgba(0,0,0,0.2);
+      padding: 0;
+      overflow: hidden;
+    }
+    .popup-content {
+      width: 300px !important;
+    }
+    .popup-image {
+      width: 100%;
+      height: 180px;
+      overflow: hidden;
+    }
+    .popup-image img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+    }
+    .popup-info {
+      padding: 12px;
+    }
+    .popup-info h3 {
+      margin: 0 0 8px 0;
+      color: #333;
+    }
+    .popup-info p {
+      margin: 0 0 8px 0;
+      font-size: 14px;
+      color: #666;
+      line-height: 1.5;
+    }
+    .popup-tags {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 4px;
+      margin-top: 8px;
+      margin-bottom: 12px;
+    }
+    .popup-tag {
+      background-color: #f0f0f0;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      color: #555;
+    }
+    .popup-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .popup-btn {
+      flex: 1;
+      padding: 6px 0;
+      border: none;
+      border-radius: 4px;
+      background-color: #c41e3a;
+      color: white;
+      font-size: 13px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
+      transition: background-color 0.2s;
+    }
+    .popup-btn:hover {
+      background-color: #a51a30;
+    }
+    
+    /* 路线规划面板 */
+    .route-panel {
+      position: absolute;
+      bottom: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1000;
+      background: white;
+      border-radius: 5px;
+      box-shadow: 0 1px 10px rgba(0,0,0,0.3);
+      padding: 15px;
+      width: 90%;
+      max-width: 600px;
+      display: none;
+    }
+    .route-panel.active {
+      display: block;
+      animation: slideUp 0.3s;
+    }
+    .route-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
+    }
+    .route-header h3 {
+      margin: 0;
+      color: #333;
+      font-size: 16px;
+    }
+    .close-route {
+      background: none;
+      border: none;
+      font-size: 18px;
+      cursor: pointer;
+      color: #666;
+    }
+    .route-selection {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+    .route-select {
+      flex: 1;
+      padding: 8px;
+      border: 1px solid #ddd;
+      border-radius: 4px;
+    }
+    .route-actions {
+      display: flex;
+      gap: 10px;
+    }
+    .route-btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 4px;
+      background-color: #c41e3a;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.2s;
+    }
+    .route-btn:hover {
+      background-color: #a51a30;
+    }
+    .route-btn.cancel {
+      background-color: #9e9e9e;
+    }
+    .route-btn.cancel:hover {
+      background-color: #757575;
+    }
+    .route-info {
+      margin-top: 15px;
+      font-size: 14px;
+      color: #666;
+    }
+    
+    /* 路线点标记样式 */
+    .route-point {
+      font-weight: bold;
+      color: #1976d2;
+      text-align: center;
+      background-color: white;
+      border: 2px solid #1976d2;
+      border-radius: 50%;
+      width: 20px;
+      height: 20px;
+      line-height: 20px;
+    }
+    
+    @keyframes slideUp {
+      from { 
+        opacity: 0;
+        transform: translate(-50%, 20px);
+      }
+      to { 
+        opacity: 1;
+        transform: translate(-50%, 0);
+      }
+    }
+  </style>
+</head>
+<body>
+<div id="map"></div>
+
+<!-- 地图控制按钮 -->
+<div class="map-controls">
+  <button class="control-btn" id="btn-zoom-in" title="放大">
+    <i class="fa fa-plus"></i>
+  </button>
+  <button class="control-btn" id="btn-zoom-out" title="缩小">
+    <i class="fa fa-minus"></i>
+  </button>
+  <button class="control-btn" id="btn-reset" title="回到起点">
+    <i class="fa fa-home"></i>
+  </button>
+</div>
+
+<!-- 地点列表面板 -->
+<div class="sites-panel">
+  <h3>革命纪念馆</h3>
+  <div class="site-item" data-id="yanan-memorial">
+    <div class="site-icon">
+      <i class="fa fa-university"></i>
+    </div>
+    <div class="site-info">
+      <p class="site-name">延安革命纪念馆</p>
+      <p class="site-location">陕西省延安市</p>
+      <p class="view-detail">点击查看详情</p>
+    </div>
+  </div>
+  <div class="site-item" data-id="yangjialing">
+    <div class="site-icon">
+      <i class="fa fa-history"></i>
+    </div>
+    <div class="site-info">
+      <p class="site-name">杨家岭革命旧址</p>
+      <p class="site-location">陕西省延安市</p>
+      <p class="view-detail">点击查看详情</p>
+    </div>
+  </div>
+  <div class="site-item" data-id="xian-incident">
+    <div class="site-icon">
+      <i class="fa fa-flag"></i>
+    </div>
+    <div class="site-info">
+      <p class="site-name">西安事变纪念馆</p>
+      <p class="site-location">陕西省西安市</p>
+      <p class="view-detail">点击查看详情</p>
+    </div>
+  </div>
+  <div class="site-item" data-id="8th-route-army">
+    <div class="site-icon">
+      <i class="fa fa-building"></i>
+    </div>
+    <div class="site-info">
+      <p class="site-name">八路军西安办事处纪念馆</p>
+      <p class="site-location">陕西省西安市</p>
+      <p class="view-detail">点击查看详情</p>
+    </div>
+  </div>
+  
+  <!-- 全线路线规划按钮 -->
+  <button class="full-route-btn" id="fullRouteBtn">
+    <i class="fa fa-road"></i> 规划全程路线
+  </button>
+</div>
+
+<!-- 路线规划面板 -->
+<div class="route-panel" id="routePanel">
+  <div class="route-header">
+    <h3 id="routePanelTitle">路线规划</h3>
+    <button class="close-route" id="closeRoute">&times;</button>
+  </div>
+  <div class="route-selection" id="routeSelection">
+    <select class="route-select" id="startPoint">
+      <option value="my-location">西北农林科技大学</option>
+      <option value="yanan-memorial">延安革命纪念馆</option>
+      <option value="yangjialing">杨家岭革命旧址</option>
+      <option value="xian-incident">西安事变纪念馆</option>
+      <option value="8th-route-army">八路军西安办事处纪念馆</option>
+    </select>
+    <select class="route-select" id="endPoint">
+      <option value="">选择终点</option>
+      <option value="yanan-memorial">延安革命纪念馆</option>
+      <option value="yangjialing">杨家岭革命旧址</option>
+      <option value="xian-incident">西安事变纪念馆</option>
+      <option value="8th-route-army">八路军西安办事处纪念馆</option>
+    </select>
+  </div>
+  <div class="route-actions" id="routeActions">
+    <button class="route-btn" id="calculateRoute">规划路线</button>
+    <button class="route-btn cancel" id="cancelRoute">取消</button>
+  </div>
+  <div class="route-info" id="routeInfo">
+    请选择起点和终点以规划路线
+  </div>
+</div>
+ 
+<script>
+  // 初始化地图，聚焦于陕西中部
+  var map = L.map('map').setView([35.0, 108.5], 7);
+  var routeLayer, routePoints = []; // 用于存储路线图层和路线点
+  var isFullRoute = false; // 标记是否是全程路线
+  
+  // 添加高德地图图层
+  var tileLayer = L.tileLayer('https://webrd01.is.autonavi.com/appmaptile?lang=zh_cn&size=1&scale=1&style=8&x={x}&y={y}&z={z}', {
+    attribution: '高德地图'
+  }).addTo(map);
+  
+  // 定义标记图标样式
+  var primaryIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+
+  // 定义起点图标样式（我的位置）
+  var startIcon = L.icon({
+    iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
+    shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowSize: [41, 41]
+  });
+  
+  // 我的位置：西北农林科技大学
+  const myLocation = {
+    name: "西北农林科技大学",
+    coords: [34.2668, 108.0568]
+  };
+  
+  // 添加起点标记和标签（名称显示在标记上方）
+  const startMarker = L.marker(myLocation.coords, {icon: startIcon})
+    .addTo(map)
+    .bindPopup(`<b>${myLocation.name}</b>`);
+  
+  // 添加文字标签 - 调整位置到标记上方
+  L.marker(myLocation.coords, {
+    icon: L.divIcon({
+      className: 'custom-label',
+      html: `<div style="font-weight:bold;color:#1976d2">${myLocation.name}</div>`,
+      iconSize: [150, 20],
+      iconAnchor: [75, 30] // 调整Y轴位置使标签显示在标记上方
+    })
+  }).addTo(map);
+  
+  // 四个指定革命纪念馆数据
+  const sites = {
+    "yanan-memorial": {
+      name: "延安革命纪念馆",
+      coords: [36.5926, 109.4907],
+      location: "陕西省延安市宝塔区王家坪",
+      description: "延安革命纪念馆是中国最早建立的革命纪念馆之一，创建于1950年。馆内珍藏了大量革命文物、文献和照片，系统展示了中国共产党在延安时期的革命历史，是全国爱国主义教育示范基地和红色旅游经典景区。",
+      image: "https://pic.616pic.com/ys_bnew_img/00/16/18/L6V5zXnKQH.jpg",
+      tags: ["革命历史", "纪念馆", "爱国主义教育"]
+    },
+    "yangjialing": {
+      name: "杨家岭革命旧址",
+      coords: [36.6098, 109.5147],
+      location: "陕西省延安市宝塔区杨家岭",
+      description: "杨家岭革命旧址是中国共产党中央委员会在延安时期的重要驻地，位于延安城西北2公里处。这里保存了毛泽东、周恩来、刘少奇等老一辈无产阶级革命家的旧居，以及中共中央办公厅、中央军委等重要机构旧址，中共七大曾在此召开。",
+      image: "https://pic.616pic.com/ys_bnew_img/00/16/18/Jn5j5Y8j8k.jpg",
+      tags: ["革命旧址", "历史遗迹", "红色旅游"]
+    },
+    "xian-incident": {
+      name: "西安事变纪念馆",
+      coords: [34.2653, 108.9540],
+      location: "陕西省西安市碑林区建国路69号",
+      description: "西安事变纪念馆是以'西安事变'重要旧址张学良公馆、杨虎城止园别墅为基础建立的专题性纪念馆。1936年12月12日，张学良、杨虎城两位将军在此发动了震惊中外的'西安事变'，促成了抗日民族统一战线的建立，成为中国近代史上的重要转折点。",
+      image: "https://pic.616pic.com/ys_bnew_img/00/16/18/QBwCzRQnVx.jpg",
+      tags: ["西安事变", "历史纪念馆", "爱国主义教育"]
+    },
+    "8th-route-army": {
+      name: "八路军西安办事处纪念馆",
+      coords: [34.2615, 108.9427],
+      location: "陕西省西安市新城区北新街七贤庄",
+      description: "八路军西安办事处纪念馆是在八路军西安办事处旧址上建立的纪念馆。七贤庄旧址始建于1936年，是抗日战争时期中国共产党领导的八路军在国民党统治区的重要办事机构，为抗日民族统一战线的建立和发展作出了重要贡献。",
+      image: "https://pic.616pic.com/ys_bnew_img/00/16/18/t4QH5dAqXx.jpg",
+      tags: ["八路军", "革命旧址", "历史纪念馆"]
+    }
+  };
+  
+  // 添加地点标记和文字标签（名称显示在标记上方）
+  const siteMarkers = {};
+  for (const id in sites) {
+    const site = sites[id];
+    // 创建自定义弹窗内容
+    const popupContent = `
+      <div class="popup-content">
+        <div class="popup-image">
+          <img src="${site.image}" alt="${site.name}">
+        </div>
+        <div class="popup-info">
+          <h3>${site.name}</h3>
+          <p>${site.location}</p>
+          <p>${site.description}</p>
+          <div class="popup-tags">
+            ${site.tags.map(tag => `<span class="popup-tag">${tag}</span>`).join('')}
+          </div>
+          <div class="popup-actions">
+            <button class="popup-btn" onclick="showRoutePanel('${id}')">
+              <i class="fa fa-map-o"></i> 路线
+            </button>
+          </div>
+        </div>
+      </div>
+    `;
+    
+    // 创建标记并绑定弹窗
+    siteMarkers[id] = L.marker(site.coords, {icon: primaryIcon})
+      .addTo(map)
+      .bindPopup(popupContent, {
+        className: 'custom-popup',
+        maxWidth: 320
+      });
+    
+    // 添加点击事件 - 点击直接放大显示并打开弹窗，与点击列表项行为一致
+    siteMarkers[id].on('click', function() {
+      map.flyTo(site.coords, 15);
+      // 延迟打开弹窗，确保地图移动完成
+      setTimeout(() => {
+        siteMarkers[id].openPopup();
+      }, 1000);
+    });
+    
+    // 添加文字标签 - 调整位置到标记上方
+    L.marker(site.coords, {
+      icon: L.divIcon({
+        className: 'custom-label',
+        html: `<div style="font-weight:bold;color:#c41e3a">${site.name}</div>`,
+        iconSize: [150, 20],
+        iconAnchor: [75, 30] // 调整Y轴位置使标签显示在标记上方
+      })
+    }).addTo(map);
+  }
+  
+  // 填充路线选择下拉框
+  const startSelect = document.getElementById('startPoint');
+  const endSelect = document.getElementById('endPoint');
+  const routePanel = document.getElementById('routePanel');
+  const routeSelection = document.getElementById('routeSelection');
+  const routeActions = document.getElementById('routeActions');
+  const routePanelTitle = document.getElementById('routePanelTitle');
+  
+  // 起点默认为我的位置
+  startSelect.value = 'my-location';
+  
+  // 地点列表点击事件
+  document.querySelectorAll('.site-item').forEach(item => {
+    item.addEventListener('click', function() {
+      const id = this.getAttribute('data-id');
+      if (siteMarkers[id]) {
+        // 平滑过渡到目标地点并放大
+        map.flyTo(siteMarkers[id].getLatLng(), 15);
+        // 延迟打开弹窗，确保地图移动完成
+        setTimeout(() => {
+          siteMarkers[id].openPopup();
+        }, 1000);
+        
+        // 添加点击效果
+        this.style.backgroundColor = '#f0f0f0';
+        setTimeout(() => {
+          this.style.backgroundColor = '';
+        }, 300);
+      }
+    });
+  });
+  
+  // 路线规划面板控制
+  function showRoutePanel(endId = '') {
+    // 重置为普通路线面板状态
+    isFullRoute = false;
+    routePanelTitle.textContent = '路线规划';
+    routeSelection.style.display = 'flex';
+    routeActions.style.display = 'flex';
+    
+    if (endId) {
+      endSelect.value = endId;
+    }
+    routePanel.classList.add('active');
+  }
+  
+  // 关闭路线面板时清除路线
+  document.getElementById('closeRoute').addEventListener('click', function() {
+    closeRoutePanel();
+  });
+  
+  document.getElementById('cancelRoute').addEventListener('click', function() {
+    closeRoutePanel();
+  });
+  
+  // 关闭路线面板并清除路线
+  function closeRoutePanel() {
+    routePanel.classList.remove('active');
+    clearRoute();
+    // 重置为普通路线面板状态
+    isFullRoute = false;
+    routePanelTitle.textContent = '路线规划';
+    routeSelection.style.display = 'flex';
+    routeActions.style.display = 'flex';
+  }
+  
+  // 计算路线按钮事件
+  document.getElementById('calculateRoute').addEventListener('click', function() {
+    if (isFullRoute) {
+      // 如果是全程路线，点击规划路线按钮不执行任何操作
+      return;
+    }
+    
+    const startId = startSelect.value;
+    const endId = endSelect.value;
+    
+    if (!startId || !endId) {
+      document.getElementById('routeInfo').textContent = '请选择起点和终点';
+      return;
+    }
+    
+    if (startId === endId) {
+      document.getElementById('routeInfo').textContent = '起点和终点不能相同';
+      return;
+    }
+    
+    // 清除已有路线和路线点
+    clearRoute();
+    
+    // 获取起点和终点坐标
+    const startCoords = startId === 'my-location' ? myLocation.coords : sites[startId].coords;
+    const endCoords = sites[endId].coords;
+    const startName = startId === 'my-location' ? myLocation.name : sites[startId].name;
+    const endName = sites[endId].name;
+    
+    // 绘制两点路线
+    drawRoute([startCoords, endCoords], [startName, endName]);
+  });
+  
+  // 全线路线规划
+  document.getElementById('fullRouteBtn').addEventListener('click', function() {
+    // 清除已有路线和路线点
+    clearRoute();
+    
+    // 标记为全程路线
+    isFullRoute = true;
+    
+    // 路线顺序：学校 -> 延安革命纪念馆 -> 杨家岭革命旧址 -> 西安事变纪念馆 -> 八路军西安办事处纪念馆
+    const routeOrder = [
+      {id: 'my-location', name: myLocation.name, coords: myLocation.coords},
+      {id: 'yanan-memorial', name: sites['yanan-memorial'].name, coords: sites['yanan-memorial'].coords},
+      {id: 'yangjialing', name: sites['yangjialing'].name, coords: sites['yangjialing'].coords},
+      {id: 'xian-incident', name: sites['xian-incident'].name, coords: sites['xian-incident'].coords},
+      {id: '8th-route-army', name: sites['8th-route-army'].name, coords: sites['8th-route-army'].coords}
+    ];
+    
+    // 提取坐标和名称数组
+    const coordsArray = routeOrder.map(point => point.coords);
+    const namesArray = routeOrder.map(point => point.name);
+    
+    // 绘制全程路线
+    routeLayer = L.polyline(coordsArray, {
+      color: '#1976d2',
+      weight: 5,
+      opacity: 0.7,
+      dashArray: '10, 10'
+    }).addTo(map);
+    
+    // 添加路线点标记
+    coordsArray.forEach((coords, index) => {
+      const pointMarker = L.marker(coords, {
+        icon: L.divIcon({
+          className: 'route-point',
+          html: `<div>${index + 1}</div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(map);
+      
+      // 添加路线点点击事件
+      pointMarker.on('click', function() {
+        map.flyTo(coords, 15);
+        // 如果是纪念馆，打开其弹窗
+        if (index > 0) {
+          const siteId = Object.keys(sites)[index - 1];
+          if (siteMarkers[siteId]) {
+            setTimeout(() => {
+              siteMarkers[siteId].openPopup();
+            }, 1000);
+          }
+        }
+      });
+      
+      routePoints.push(pointMarker);
+    });
+    
+    // 计算总距离
+    let totalDistance = 0;
+    for (let i = 0; i < coordsArray.length - 1; i++) {
+      totalDistance += calculateDistance(coordsArray[i], coordsArray[i + 1]);
+    }
+    
+    // 更新路线信息并显示面板，隐藏选择框和规划按钮
+    let routeDetails = `总距离：约${totalDistance.toFixed(1)}公里 | 途经点：`;
+    routeDetails += namesArray.join(' -> ');
+    
+    document.getElementById('routeInfo').textContent = routeDetails;
+    routePanelTitle.textContent = '全程路线规划';
+    routeSelection.style.display = 'none';  // 隐藏起点终点选择框
+    routeActions.style.display = 'none';    // 隐藏规划和取消按钮
+    routePanel.classList.add('active');
+    
+    // 调整地图视图以显示整个路线
+    map.fitBounds(routeLayer.getBounds(), {padding: [50, 50]});
+    
+    // 路线点击事件
+    routeLayer.on('click', function() {
+      alert('全程路线详情：\n' + namesArray.join(' -> ') + '\n总距离：约' + totalDistance.toFixed(1) + '公里');
+    });
+  });
+  
+  // 绘制路线
+  function drawRoute(coordsArray, namesArray) {
+    // 创建路线
+    routeLayer = L.polyline(coordsArray, {
+      color: '#1976d2',
+      weight: 5,
+      opacity: 0.7,
+      dashArray: '10, 10'
+    }).addTo(map);
+    
+    // 添加路线点标记
+    coordsArray.forEach((coords, index) => {
+      const pointMarker = L.marker(coords, {
+        icon: L.divIcon({
+          className: 'route-point',
+          html: `<div>${index + 1}</div>`,
+          iconSize: [20, 20],
+          iconAnchor: [10, 10]
+        })
+      }).addTo(map);
+      
+      // 添加路线点点击事件
+      pointMarker.on('click', function() {
+        map.flyTo(coords, 15);
+        // 如果是纪念馆，打开其弹窗
+        if (index > 0) {
+          const siteId = endSelect.value;
+          if (siteMarkers[siteId]) {
+            setTimeout(() => {
+              siteMarkers[siteId].openPopup();
+            }, 1000);
+          }
+        }
+      });
+      
+      routePoints.push(pointMarker);
+    });
+    
+    // 计算总距离
+    let totalDistance = 0;
+    for (let i = 0; i < coordsArray.length - 1; i++) {
+      totalDistance += calculateDistance(coordsArray[i], coordsArray[i + 1]);
+    }
+    
+    // 更新路线信息
+    let routeDetails = `总距离：约${totalDistance.toFixed(1)}公里 | 路线：`;
+    routeDetails += namesArray.join(' -> ');
+    
+    document.getElementById('routeInfo').textContent = routeDetails;
+    
+    // 调整地图视图以显示整个路线
+    map.fitBounds(routeLayer.getBounds(), {padding: [50, 50]});
+    
+    // 路线点击事件
+    routeLayer.on('click', function() {
+      alert('路线详情：\n' + namesArray.join(' -> ') + '\n总距离：约' + totalDistance.toFixed(1) + '公里');
+    });
+  }
+  
+  // 清除路线和路线点
+  function clearRoute() {
+    if (routeLayer && map.hasLayer(routeLayer)) {
+      map.removeLayer(routeLayer);
+      routeLayer = null;
+    }
+    
+    routePoints.forEach(point => {
+      if (map.hasLayer(point)) {
+        map.removeLayer(point);
+      }
+    });
+    routePoints = [];
+  }
+  
+  // 计算两点之间的直线距离（公里）
+  function calculateDistance(point1, point2) {
+    const R = 6371; // 地球半径（公里）
+    const lat1 = toRadians(point1[0]);
+    const lon1 = toRadians(point1[1]);
+    const lat2 = toRadians(point2[0]);
+    const lon2 = toRadians(point2[1]);
+    
+    const dLat = lat2 - lat1;
+    const dLon = lon2 - lon1;
+    
+    const a = Math.sin(dLat/2) * Math.sin(dLat/2) +
+              Math.cos(lat1) * Math.cos(lat2) * 
+              Math.sin(dLon/2) * Math.sin(dLon/2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+    
+    return R * c;
+  }
+  
+  // 角度转弧度
+  function toRadians(degrees) {
+    return degrees * (Math.PI/180);
+  }
+  
+  // 地图控制按钮事件
+  document.getElementById('btn-zoom-in').addEventListener('click', function() {
+    map.zoomIn();
+  });
+  
+  document.getElementById('btn-zoom-out').addEventListener('click', function() {
+    map.zoomOut();
+  });
+  
+  // 修改小房子按钮行为：点击后跳转到西北农林科技大学并关闭路线面板
+  document.getElementById('btn-reset').addEventListener('click', function() {
+    // 跳转到我的位置（西北农林科技大学）并放大
+    map.flyTo(myLocation.coords, 15);
+    // 清除路线
+    clearRoute();
+    // 隐藏路线面板并重置状态
+    closeRoutePanel();
+  });
+</script>
+</body>
+</html>
+    
